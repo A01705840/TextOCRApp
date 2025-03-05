@@ -102,7 +102,8 @@ class MainActivity : ComponentActivity() {
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         recognizer.process(image).addOnSuccessListener { ocrText ->
-            resultText.text = ocrText.text
+            val numbersOnly = ocrText.text.filter { it.isDigit() }
+            resultText.text = numbersOnly
             resultText.movementMethod = ScrollingMovementMethod()
         }.addOnFailureListener { e ->
             Toast.makeText(this, "No se pudo reconocer el texto: ${e.message}", Toast.LENGTH_SHORT).show()
