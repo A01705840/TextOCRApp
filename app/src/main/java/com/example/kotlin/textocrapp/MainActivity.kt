@@ -38,10 +38,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         cameraImage = findViewById(R.id.cameraImage)
-        Log.e("dfsdfsdfdsfdsadasdasdasdasdasdsad", "onCreate: findviewpasses????")
         captureImgBtn = findViewById(R.id.captureImgButton)
         resultText = findViewById(R.id.resultText)
-        Log.e("dfsdfsdfdsfdsadasdasdasdasdasdsad", "onCreate: findviewpasses????")
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){
             isGranted ->
             if (isGranted){
