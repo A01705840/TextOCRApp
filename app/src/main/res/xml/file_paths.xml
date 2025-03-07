@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- For images captured by the camera -->
+    <external-files-path
+        name="my_images"
+        path="Pictures" />
+
+    <!-- For temporary crop output files -->
+    <cache-path
+        name="cache"
+        path="." />
+
+    <!-- For shared files from external storage -->
+    <external-path
+        name="external_files"
+        path="." />
+</paths>

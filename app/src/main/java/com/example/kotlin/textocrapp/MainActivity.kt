@@ -16,6 +16,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -30,9 +34,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var captureImgBtn: Button
     private lateinit var resultText : TextView
     private var currentPhotoPath: String? = null
-
+    private var photoUri: Uri? = null
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
     private lateinit var takePictureLauncher: ActivityResultLauncher<Uri>
+    private lateinit var cropImageLauncher: ActivityResultLauncher<CropImageContractOptions>
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +47,14 @@ class MainActivity : ComponentActivity() {
         cameraImage = findViewById(R.id.cameraImage)
         captureImgBtn = findViewById(R.id.captureImgButton)
         resultText = findViewById(R.id.resultText)
+
+        savedInstanceState?.let {
+            val savedUri = it.getParcelable<Uri>("photoUri")
+            if (savedUri != null) {
+                photoUri = savedUri
+            }
+        }
+
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){
             isGranted ->
             if (isGranted){
@@ -51,12 +66,34 @@ class MainActivity : ComponentActivity() {
 
         takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()){
             success ->
-            if (success){
-                currentPhotoPath?.let { path ->
+            if (success && photoUri != null){
+                /*currentPhotoPath?.let { path ->
                     val bitmap = BitmapFactory.decodeFile(path)
                     cameraImage.setImageBitmap(bitmap)
                     recognizeText(bitmap)
+
+                }*/
+                launchImageCropper(photoUri!!)
+            }
+        }
+
+        cropImageLauncher = registerForActivityResult(CropImageContract()){
+            result ->
+            if (result.isSuccessful){
+                val croppedUri = result.uriContent
+                try{
+                    val inputStream = contentResolver.openInputStream(croppedUri!!)
+                    val bitmap = BitmapFactory.decodeStream(inputStream)
+
+                    cameraImage.setImageBitmap(bitmap)
+
+                    recognizeText(bitmap)
+                }catch (e: Exception){
+                    Log.e("Main Activity", "Error loading cropped image", e)
                 }
+            }else {
+                val error = result.error
+                Log.e("Main Activity", "Crop Error ${error?.message}")
             }
         }
 
@@ -89,10 +126,69 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Ocurrió un error mientras se creaba el archivo", Toast.LENGTH_SHORT).show()
             null
         }
-        photoFile?.also {
-            val photoUri: Uri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.provider", it)
-            takePictureLauncher.launch(photoUri)
+        if (photoFile != null) {
+            try {
+                // Create URI and store it as a class property
+                photoUri = FileProvider.getUriForFile(
+                    this,
+                    "${applicationContext.packageName}.provider",
+                    photoFile
+                )
+
+                Log.d("MainActivity", "Created photo URI: $photoUri")
+
+                // Launch camera with the URI
+                takePictureLauncher.launch(photoUri!!)
+            } catch (ex: Exception) {
+                Log.e("MainActivity", "Error creating URI or launching camera", ex)
+                Toast.makeText(this, "Error: ${ex.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "No se pudo crear el archivo para la foto", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save the photo URI
+        photoUri?.let { outState.putParcelable("photoUri", it) }
+    }
+
+    private fun launchImageCropper(uri: Uri){
+        val cropOptions = CropImageOptions().apply {
+            guidelines = CropImageView.Guidelines.ON
+            fixAspectRatio = false
+            cropShape = CropImageView.CropShape.RECTANGLE
+            showProgressBar = true
+
+            activityTitle = "Crop Image"
+
+            // Make sure crop controls are visible
+            showCropOverlay = true
+
+            // Enable image flipping and rotation controls
+            allowFlipping = true
+            allowRotation = true
+
+            // Set crop menu crop button title
+            cropMenuCropButtonTitle = "Done"
+
+
+            // Set activity menu text colors
+            activityMenuTextColor = android.graphics.Color.WHITE
+
+            // Ensure back button is shown
+            skipEditing = false
+
+            // Set other UI options
+            toolbarColor = android.graphics.Color.BLACK
+            toolbarBackButtonColor = android.graphics.Color.WHITE
+            toolbarTintColor = android.graphics.Color.WHITE
+
+        }
+
+        val cropImageContractOptions = CropImageContractOptions(uri, cropOptions)
+        cropImageLauncher.launch(cropImageContractOptions)
     }
 
     private fun recognizeText(bitmap: Bitmap){

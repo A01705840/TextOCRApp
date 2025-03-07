@@ -68,4 +68,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation (libs.text.recognition)
+    implementation("com.vanniktech:android-image-cropper:4.6.0")
 }
