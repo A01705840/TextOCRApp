@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
         captureImgBtn = findViewById(R.id.captureImgButton)
         resultText = findViewById(R.id.resultText)
 
+        //Para evitar que var PhotoUri no sea null.
         savedInstanceState?.let {
             val savedUri = it.getParcelable<Uri>("photoUri")
             if (savedUri != null) {
@@ -55,6 +56,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        //Acción de pedir permisos para usar la cámara.
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){
             isGranted ->
             if (isGranted){
@@ -64,6 +66,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        //Acción de tomar fotos con la cámara.
         takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()){
             success ->
             if (success && photoUri != null){
@@ -77,12 +80,14 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        //Acción de inicializar interfaz de Crop.
         cropImageLauncher = registerForActivityResult(CropImageContract()){
             result ->
             if (result.isSuccessful){
                 val croppedUri = result.uriContent
                 try{
                     val inputStream = contentResolver.openInputStream(croppedUri!!)
+                    //El bitmap se usa para la parte de recognizeText() no el Uri
                     val bitmap = BitmapFactory.decodeStream(inputStream)
 
                     cameraImage.setImageBitmap(bitmap)
@@ -96,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 Log.e("Main Activity", "Crop Error ${error?.message}")
             }
         }
-
+        //Acción de Botón
         captureImgBtn.setOnClickListener {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -104,7 +109,6 @@ class MainActivity : ComponentActivity() {
     }
 
     // Capturar Foto Temporal de Galeria
-
     private fun createImageFile(): File {
         val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(
             Date()
@@ -118,7 +122,6 @@ class MainActivity : ComponentActivity() {
     }
 
     // Capturar Foto Temporal con Prevencion de Error
-
     private fun captureImage(){
         val photoFile: File? = try{
             createImageFile()
@@ -148,12 +151,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    //Guardar la photoUri para que no sea null
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         // Save the photo URI
         photoUri?.let { outState.putParcelable("photoUri", it) }
     }
 
+    /*Aspectos de UI de Cropper como:
+        Colores
+        Forma de Crop
+        Botones
+        Etc...
+     */
     private fun launchImageCropper(uri: Uri){
         val cropOptions = CropImageOptions().apply {
             guidelines = CropImageView.Guidelines.ON
@@ -166,13 +176,8 @@ class MainActivity : ComponentActivity() {
             // Make sure crop controls are visible
             showCropOverlay = true
 
-            // Enable image flipping and rotation controls
-            allowFlipping = true
-            allowRotation = true
-
             // Set crop menu crop button title
             cropMenuCropButtonTitle = "Done"
-
 
             // Set activity menu text colors
             activityMenuTextColor = android.graphics.Color.WHITE
@@ -191,11 +196,13 @@ class MainActivity : ComponentActivity() {
         cropImageLauncher.launch(cropImageContractOptions)
     }
 
+    // Función de ML Kit Recognize Text
     private fun recognizeText(bitmap: Bitmap){
         val image = InputImage.fromBitmap(bitmap, 0)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
         recognizer.process(image).addOnSuccessListener { ocrText ->
+            //Aqui solo filtra a digitos numéricos
             val numbersOnly = ocrText.text.filter { it.isDigit() }
             resultText.text = numbersOnly
             resultText.movementMethod = ScrollingMovementMethod()
